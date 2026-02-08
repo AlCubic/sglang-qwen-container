@@ -47,7 +47,7 @@ check_env() {
     log_info "Проверка переменных окружения..."
     
     # Проверка модели
-    MODEL_PATH="${MODEL_PATH:-Qwen/Qwen2.5-0.5B-Instruct}"
+    MODEL_PATH="${MODEL_PATH:-/models/Qwen2.5-0.5B-Instruct}"
     log_info "Путь к модели: $MODEL_PATH"
     
     # Проверка HuggingFace токена (опционально)
@@ -87,45 +87,33 @@ start_sglang() {
     log_info "Порт: $port"
     log_info "Тип данных: $dtype"
     
-    # Проверка и создание директории для кэша модели
-    mkdir -p /models
+    # Проверка и создание директории для логов
     mkdir -p /logs
     
-    # Сборка аргументов для SGLang
+    # Проверка наличия локальной модели
+    if [ -d "$model_path" ]; then
+        log_info "Найдена локальная модель: $model_path"
+    elif [ -d "/models/Qwen2.5-0.5B-Instruct" ]; then
+        model_path="/models/Qwen2.5-0.5B-Instruct"
+        log_info "Используется локальная модель: $model_path"
+    else
+        log_info "Модель будет загружена с HuggingFace Hub: $model_path"
+    fi
+    
+    # Сборка аргументов для SGLang v0.4.8 (только поддерживаемые параметры)
     SGLANG_ARGS=(
         "--model-path" "$model_path"
         "--host" "$host"
         "--port" "$port"
         "--dtype" "$dtype"
         "--trust-remote-code"
-        "--enforce-eager"
         "--log-level" "info"
-        "--log-requests"
     )
-    
-    # Добавление опциональных параметров из конфигурации
-    if [ -f "/app/config/custom_sglang.json" ]; then
-        log_info "Загрузка пользовательской конфигурации..."
-        # Параметры могут быть добавлены здесь при необходимости
-    fi
-    
-    # Добавление параметров для оптимизации памяти на RTX 4000
-    local gpu_memory_fraction="${GPU_MEMORY_FRACTION:-0.85}"
-    SGLANG_ARGS+=("--gpu-memory-utilization" "$gpu_memory_fraction")
-    
-    # Добавление chunked prefill для лучшей производительности
-    if [ "${CHUNKED_PREFILL:-true}" = "true" ]; then
-        SGLANG_ARGS+=("--enable-chunked-prefill")
-    fi
-    
-    # Добавление max concurrent tokens
-    local max_concurrent="${MAX_CONCURRENT_TOKENS:-256}"
-    SGLANG_ARGS+=("--max-concurrent-tokens" "$max_concurrent")
     
     log_debug "Полные аргументы SGLang: ${SGLANG_ARGS[*]}"
     
     # Запуск SGLang сервера
-    log_info "Запуск команды: python -m sglang.launch_server ${SGLANG_ARGS[*]}"
+    log_info "Запуск: python -m sglang.launch_server ${SGLANG_ARGS[*]}"
     
     exec python -m sglang.launch_server "${SGLANG_ARGS[@]}"
 }
@@ -133,7 +121,7 @@ start_sglang() {
 # Функция обработки сигналов graceful shutdown
 signal_handler() {
     log_info "Получен сигнал завершения, останавливаю сервер..."
-    kill -TERM $PID
+    kill -TERM $PID 2>/dev/null || true
     wait $PID 2>/dev/null || true
     log_info "Сервер остановлен"
     exit 0
@@ -160,7 +148,7 @@ main() {
     cleanup
     
     # Запуск SGLang
-    MODEL_PATH="${MODEL_PATH:-Qwen/Qwen2.5-0.5B-Instruct}"
+    MODEL_PATH="${MODEL_PATH:-/models/Qwen2.5-0.5B-Instruct}"
     start_sglang "$MODEL_PATH" &
     
     # Сохранение PID для graceful shutdown
