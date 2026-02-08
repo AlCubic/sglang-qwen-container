@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  sglang-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sglang-qwen-inference
+    hostname: sglang-inference
+    
+    # Конфигурация GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    
+    # Проброс портов
+    ports:
+      - "30000:30000"
+      - "30001:30001"
+    
+    # Монтирование томов для persistent данных
+    volumes:
+      - ./models:/models
+      - ./data:/data
+      - ./logs:/logs
+      - ./config/custom_sglang.json:/app/config/custom_sglang.json:ro
+    
+    # Переменные окружения
+    environment:
+      - MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct
+      - SGLANG_PORT=30000
+      - SGLANG_HOST=0.0.0.0
+      - SGLANG_DTYPE=bfloat16
+      - HF_TOKEN=${HF_TOKEN:-}
+      - CUDA_VISIBLE_DEVICES=0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - NVIDIA_REQUIRE=cuda>=12.0
+      
+    # Конфигурация перезапуска
+    restart: unless-stopped
+    
+    # Проверка здоровья контейнера
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:30000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Ограничения ресурсов (опционально)
+    # mem_limit: 16g
+    # shm_size: 4g
+    
+    # Сети (раскомментировать если нужна изолированная сеть)
+    # networks:
+    #   - sglang-network
+    
+    # Логирование
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+# Определение сетей (раскомментировать при использовании)
+# networks:
+#   sglang-network:
+#     driver: bridge
+#     ipam:
+#       config:
+#         - subnet: 172.28.0.0/16
