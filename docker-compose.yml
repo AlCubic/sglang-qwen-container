@@ -44,11 +44,11 @@ services:
     
     # Проверка здоровья контейнера
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:30000/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:30000/health || exit 1"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
     
     # Ограничения ресурсов (опционально)
     # mem_limit: 16g

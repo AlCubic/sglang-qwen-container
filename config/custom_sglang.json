@@ -7,13 +7,13 @@
   "trust_remote_code": true,
   "enforce_eager": true,
   
-  "gpu_memory_utilization": 0.85,
-  "max_concurrent_tokens": 256,
-  "max_num_batched_tokens": 2048,
+  "gpu_memory_utilization": 0.70,
+  "max_concurrent_tokens": 128,
+  "max_num_batched_tokens": 1024,
   
   "enable_chunked_prefill": true,
-  "decode_chunk_size": 1024,
-  "prefill_chunk_size": 1024,
+  "decode_chunk_size": 512,
+  "prefill_chunk_size": 512,
   
   "log_level": "info",
   "log_requests": true,
@@ -22,7 +22,7 @@
   "api_key": null,
   "allow_credentials": true,
   "allowed_origins": ["*"],
-  "max_model_len": 4096,
+  "max_model_len": 2048,
   
   "attention_backend": "flashinfer",
   
@@ -36,11 +36,11 @@
     "optimization": {
       "tensor_parallel": 1,
       "pipeline_parallel": 1,
-      "context_length": 4096
+      "context_length": 2048
     },
     "memory": {
-      "reserved_memory_mb": 512,
-      "swap_space_mb": 2048
+      "reserved_memory_mb": 1024,
+      "swap_space_mb": 4096
     }
   }
 }
