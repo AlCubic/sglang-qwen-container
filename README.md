@@ -12,6 +12,7 @@
 6. [Мониторинг и обслуживание](#мониторинг-и-обслуживание)
 7. [Производительность](#производительность)
 8. [Устранение неполадок](#устранение-неполадок)
+9. [Важные исправления и особенности](#важные-исправления-и-особенности)
 
 ## Обзор решения
 
@@ -19,105 +20,73 @@
 
 Проект представляет собой контейнеризированное решение для инференса языковых моделей, включающее следующие компоненты:
 
-- **SGLang v0.4.8** — высокопроизводительный фреймворк для обслуживания больших языковых моделей, обеспечивающий минимальную задержку и высокую пропускную способность при推理
-- **Qwen2.5-0.5B-Instruct** — компактная языковая модель от Alibaba с 500 миллионами параметров, оптимизированная для задач генерации текста и диалоговых систем
-- **Docker Container** — контейнер на базе NVIDIA CUDA 12.6 с полной поддержкой GPU и оптимизированными зависимостями
+- **SGLang v0.4.8.post1** — высокопроизводительный фреймворк для обслуживания больших языковых моделей
+- **Qwen2.5-0.5B-Instruct** — компактная языковая модель от Alibaba с 500 миллионами параметров
+- **Docker Container** — контейнер на базе официального образа lmsysorg/sglang:v0.4.8.post1-cu126 с CUDA 12.6
 
 ### Ключевые характеристики модели
-
-Модель Qwen2.5-0.5B-Instruct обладает следующими техническими характеристиками, которые делают её идеальным выбором для развёртывания на Quadro RTX 4000:
 
 | Параметр | Значение |
 |----------|----------|
 | Количество параметров | 500 млн |
-| Контекстное окно | 4096 токенов |
-| Требования к VRAM (FP16) | ~2.1 ГБ |
+| Контекстное окно | 32768 токенов |
 | Требования к VRAM (BF16) | ~2 ГБ |
 | Поддержка квантизации | Да (GPTQ, AWQ, GGUF) |
 | Языки | Многоязычная (включая русский) |
-
-Эти показатели означают, что модель комфортно разместится в 8 ГБ видеопамяти Quadro RTX 4000, оставив достаточно ресурсов для операционной системы и служебных процессов.
-
-### Преимущества использования SGLang
-
-Фреймворк SGLang предоставляет ряд существенных преимуществ для production-развёртывания:
-
-- **Zero-overhead batch scheduling** — планировщик с нулевыми накладными расходами, обеспечивающий максимальную эффективность использования GPU
-- **Cache-aware load balancing** — интеллектуальная балансировка нагрузки с учётом кэша KV-токенов для минимизации повторных вычислений
-- **Chunked prefill** — разбиение префиксных вычислений на чанки для более эффективного использования памяти и снижения задержки первого токена
-- **RadixAttention** — механизм повторного использования KV-кэша для повторяющихся префиксов и системных промптов
 
 ## Системные требования
 
 ### Аппаратные требования
 
-Для успешного развёртывания и эксплуатации решения необходимы следующие аппаратные компоненты:
-
-| Компонент | Минимальные требования | Рекомендуемые требования |
-|-----------|------------------------|--------------------------|
-| GPU | NVIDIA Quadro RTX 4000 8GB | NVIDIA RTX 4060 или выше |
+| Компонент | Минимальные требования | Рекомендуемые |
+|-----------|------------------------|---------------|
+| GPU | NVIDIA Quadro RTX 4000 8GB | NVIDIA RTX 4060+ |
 | VRAM | 8 ГБ | 8+ ГБ |
 | Системная память | 16 ГБ | 32 ГБ |
 | CPU | 4 ядра | 8 ядер |
 | Диск | 50 ГБ SSD | 100+ ГБ NVMe SSD |
 
-Следует отметить, что Quadro RTX 4000 построена на архитектуре Turing (GTX 16-й серии / RTX 20-й серии), которая полностью поддерживается драйверами NVIDIA начиная с версии 470.x. Данная карта оснащена 8 ГБ памяти GDDR6, 2304 ядрами CUDA и 288 тензорными ядрами, что обеспечивает достаточную производительность для推理 компактных языковых моделей.
+Quadro RTX 4000 построена на архитектуре Turing (CUDA capability 7.5) с 8 ГБ GDDR6 памяти.
 
 ### Программные требования
 
-Программное окружение должно соответствовать следующим версиям:
+| Компонент | Требуемая версия |
+|-----------|------------------|
+| NVIDIA Driver | 470.x или выше |
+| Docker | 20.10 или выше |
+| Docker Compose | 2.0+ (используйте `docker compose` без дефиса) |
+| NVIDIA Container Toolkit | 1.13 или выше |
+| CUDA Toolkit | 12.0+ |
 
-| Компонент | Требуемая версия | Комментарий |
-|-----------|------------------|-------------|
-| NVIDIA Driver | 470.x или выше | Для Turing и более новых GPU |
-| Docker | 20.10 или выше | С поддержкой containerd |
-| Docker Compose | 2.0 или выше | Рекомендуется v2.x |
-| NVIDIA Container Toolkit | 1.13 или выше | Для проброса GPU в контейнеры |
-| CUDA Toolkit | 12.0 или выше | Входит в состав container toolkit |
-| Python | 3.10+ | Для локальных скриптов |
-
-### Проверка совместимости GPU
-
-Перед развёртыванием убедитесь в корректной работе GPU с помощью следующей команды:
+### Проверка GPU
 
 ```bash
-# Проверка наличия GPU и драйверов
 nvidia-smi
-
-# Ожидаемый вывод должен содержать информацию о Quadro RTX 4000
-# +-----------------------------------------------------------------------------+
-# | NVIDIA-SMI 535.xx       Driver Version: 535.xx       CUDA Version: 12.x     |
-# |-------------------------------+----------------------+----------------------+
-# | GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
-# | Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
-# |===============================+======================+======================|
-# |   0  Quadro RTX 4000     Off  | 00000000:01:00.0  On |                  N/A |
-# | 30%   37C    P8    13W / 125W |   812MiB /  8192MiB |     0%      Default   |
-# +-------------------------------+----------------------+----------------------+
-```
-
-### Проверка поддержки GPU в Docker
-
-Для обеспечения работы GPU внутри Docker-контейнеров необходимо установить NVIDIA Container Toolkit:
-
-```bash
-# Проверка настройки NVIDIA runtime
-docker info | grep -A 10 "Runtimes"
-
-# Тестовый запуск контейнера с проверкой GPU
 docker run --rm --gpus all nvidia/cuda:12.6-base-ubuntu22.04 nvidia-smi
 ```
 
-Если上述 команды выполняются успешно и отображают информацию о GPU, система готова к развёртыванию.
-
 ## Установка и настройка
+
+### Предварительная загрузка модели (рекомендуется)
+
+Для ускорения первого запуска рекомендуется предварительно загрузить модель на сервер:
+
+```bash
+# Установка зависимостей
+pip3 install --break-system-packages --user huggingface_hub
+
+# Создание директории для модели
+mkdir -p ~/sglang-qwen-container/models
+
+# Загрузка модели
+cd ~/sglang-qwen-container/models
+python3 -c "from huggingface_hub import snapshot_download; snapshot_download('Qwen/Qwen2.5-0.5B-Instruct', local_dir='Qwen2.5-0.5B-Instruct')"
+```
 
 ### Подготовка окружения
 
-Выполните следующие шаги для подготовки окружения к развёртыванию:
-
 ```bash
-# Клонирование репозитория (или переход в директорию проекта)
+# Клонирование репозитория
 cd ~/sglang-qwen-project
 
 # Установка прав на исполнение скриптов
@@ -125,376 +94,245 @@ chmod +x scripts/*.sh
 
 # Создание необходимых директорий
 mkdir -p models data logs
+
+# Проверка прав на директорию models
+sudo chown -R $USER:$USER models data logs
 ```
 
-### Конфигурация переменных окружения
-
-Создайте файл `.env` для хранения конфигурации (опционально, но рекомендуется):
+### Сборка и запуск
 
 ```bash
-# Создание файла конфигурации
-cat > .env << 'EOF'
-# Модель для загрузки
-MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct
+# Сборка Docker образа
+cd ~/sglang-qwen-container
+docker compose build
 
-# Параметры SGLang сервера
-SGLANG_HOST=0.0.0.0
-SGLANG_PORT=30000
-SGLANG_DTYPE=bfloat16
+# Запуск контейнера
+docker compose up -d
 
-# Оптимизация памяти для RTX 4000
-GPU_MEMORY_FRACTION=0.85
-CHUNKED_PREFILL=true
-MAX_CONCURRENT_TOKENS=256
-
-# HuggingFace токен (опционально, для доступа к gated моделям)
-# HF_TOKEN=your_hf_token_here
-
-# Настройки логирования
-LOG_LEVEL=info
-EOF
+# Проверка статуса
+docker ps | grep sglang
 ```
-
-При наличии HuggingFace токена рекомендуется добавить его для аутентификации:
-
-```bash
-export HF_TOKEN="your_huggingface_token_here"
-```
-
-Токен можно получить на странице https://huggingface.co/settings/tokens.
-
-### Сборка Docker образа
-
-Соберите Docker образ с учётом вашей конфигурации:
-
-```bash
-# Стандартная сборка
-./scripts/start.sh build
-
-# Сборка без использования кэша
-./scripts/start.sh build --no-cache
-
-# Принудительная пересборка
-./scripts/start.sh build --force
-```
-
-Процесс сборки занимает 5-15 минут в зависимости от скорости интернет-соединения и производительности системы. Образ включает все необходимые зависимости для работы SGLang и загрузки модели Qwen2.5-0.5B-Instruct.
 
 ## Запуск и эксплуатация
-
-### Первый запуск
-
-При первом запуске контейнер автоматически загрузит модель с HuggingFace Hub. Этот процесс может занять несколько минут в зависимости от скорости соединения:
-
-```bash
-# Запуск контейнера в интерактивном режиме (для наблюдения за загрузкой)
-./scripts/start.sh start
-
-# Или в фоновом режиме
-./scripts/start.sh start --detach
-```
-
-После успешного запуска вы увидите сообщение о доступности API:
-
-```
-[INFO] SGLang сервер успешно запущен
-[INFO] API доступен по адресу: http://localhost:30000
-```
 
 ### Базовые операции
 
 ```bash
-# Проверка статуса контейнера
-./scripts/start.sh status
+# Запуск
+docker compose up -d
 
-# Просмотр логов в реальном времени
-./scripts/start.sh logs --follow
+# Просмотр логов
+docker logs sglang-qwen-inference -f
 
-# Перезапуск контейнера
-./scripts/start.sh restart
+# Перезапуск
+docker compose restart
 
-# Остановка контейнера
-./scripts/start.sh stop
-
-# Вход в контейнер для отладки
-./scripts/start.sh shell
+# Остановка
+docker compose down
 ```
 
 ### Тестирование API
 
-После запуска сервера выполните базовое тестирование API:
-
 ```bash
-# Запуск тестов
-./scripts/start.sh test
+# Проверка информации о модели
+curl http://localhost:30000/get_model_info
 
-# Или вручную
-curl -X POST "http://localhost:30000/generate" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "model": "Qwen/Qwen2.5-0.5B-Instruct",
-       "prompt": "Объясни принцип работы нейронных сетей простыми словами.",
-       "max_tokens": 200,
-       "temperature": 0.7
-     }'
-```
+# Генерация текста
+curl -X POST http://localhost:30000/generate \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Какой столица Франции?", "max_tokens": 100}'
 
-Пример ответа API:
-
-```json
-{
-  "generated_text": "Нейронные сети — это компьютерные системы, вдохновленные работой человеческого мозга...",
-  "finish_reason": "stop",
-  "usage": {
-    "prompt_tokens": 15,
-    "completion_tokens": 85,
-    "total_tokens": 100
-  }
-}
+# Проверка здоровья
+curl http://localhost:30000/health
 ```
 
 ## Конфигурация
 
-### Параметры запуска SGLang
+### Параметры SGLang
 
-Основные параметры запуска SGLang-сервера настраиваются через переменные окружения или аргументы командной строки:
+Основные параметры настраиваются через переменные окружения в docker-compose.yml:
 
-| Параметр | Значение по умолчанию | Описание |
-|----------|----------------------|----------|
-| `--model-path` | Qwen/Qwen2.5-0.5B-Instruct | Путь к модели или идентификатор HuggingFace |
-| `--host` | 0.0.0.0 | IP-адрес для прослушивания |
-| `--port` | 30000 | Порт HTTP-сервера |
-| `--dtype` | bfloat16 | Тип данных для весов модели |
-| `--trust-remote-code` | true | Доверие к удалённому коду модели |
-| `--enforce-eager` | true | Принудительное использование eager mode |
-| `--gpu-memory-utilization` | 0.85 | Доля VRAM для модели (0.0-1.0) |
-| `--max-concurrent-tokens` | 256 | Максимальное количество одновременных токенов |
-| `--enable-chunked-prefill` | true | Включение chunked prefill |
-| `--max-model-len` | 4096 | Максимальная длина контекста |
+| Параметр | Значение | Описание |
+|----------|----------|----------|
+| MODEL_PATH | /models/Qwen2.5-0.5B-Instruct | Локальный путь к модели |
+| SGLANG_HOST | 0.0.0.0 | IP для прослушивания |
+| SGLANG_PORT | 30000 | Порт сервера |
+| SGLANG_DTYPE | bfloat16 | Тип данных |
+| HOME | /tmp | Для избежания ошибок flashinfer |
+| FLASHINFER_WORKSPACE_DIR | /tmp/flashinfer | Рабочая директория flashinfer |
+| TORCH_CUDA_ARCH_LIST | 7.5 | CUDA architecture для Turing |
 
-### Оптимизация для Quadro RTX 4000
+### Оптимизация для RTX 4000
 
-Для достижения оптимальной производительности на Quadro RTX 4000 рекомендуются следующие настройки:
+Для Quadro RTX 4000 критически важны следующие настройки:
 
-```json
-{
-  "gpu_memory_utilization": 0.85,
-  "max_concurrent_tokens": 256,
-  "max_num_batched_tokens": 2048,
-  "enable_chunked_prefill": true,
-  "decode_chunk_size": 1024,
-  "prefill_chunk_size": 1024,
-  "attention_backend": "flashinfer"
-}
+```yaml
+environment:
+  - HOME=/tmp
+  - FLASHINFER_WORKSPACE_DIR=/tmp/flashinfer
+  - TORCH_CUDA_ARCH_LIST=7.5
 ```
 
-Значение `gpu_memory_utilization` установлено на уровне 0.85 (85%) для сохранения резервного пространства памяти, необходимого для операционной системы и служебных процессов CUDA. Это особенно важно для видеокарт с 8 ГБ памяти, где каждый мегабайт на счету.
+## Мониторинг
+
+### Проверка состояния
+
+```bash
+# Статус контейнера
+docker ps | grep sglang
+
+# Использование GPU
+nvidia-smi
+
+# Логи контейнера
+docker logs sglang-qwen-inference --tail 50
+```
 
 ### API Endpoints
-
-SGLang предоставляет следующие основные endpoints:
 
 | Endpoint | Метод | Описание |
 |----------|-------|----------|
 | `/generate` | POST | Генерация текста |
-| `/generate_stream` | POST | Потоковая генерация текста |
-| `/v1/models` | GET | Информация о загруженных моделях |
 | `/health` | GET | Проверка работоспособности |
-| `/metrics` | GET | Метрики Prometheus |
-
-## Мониторинг и обслуживание
-
-### Проверка состояния GPU
-
-Для мониторинга состояния GPU во время работы используйте:
-
-```bash
-# Просмотр использования GPU в реальном времени
-nvidia-smi -l 1
-
-# Детальная информация о памяти и процессах
-nvidia-smi dmon
-
-# Мониторинг с детализацией по процессам
-nvidia-smi pmon
-```
-
-### Метрики Prometheus
-
-SGLang предоставляет метрики в формате Prometheus на endpoint `/metrics`:
-
-```bash
-# Получение метрик
-curl http://localhost:30000/metrics
-
-# Примеры метрик:
-# - sglang:request_total 1234
-# - sglang:request_duration_seconds_bucket{le="0.1"} 567
-# - sglang:gpu_memory_usage_bytes 2147483648
-```
-
-### Логирование
-
-Логи контейнера сохраняются в директорию `logs/`:
-
-```bash
-# Просмотр последних логов
-tail -f logs/sglang.log
-
-# Фильтрация по уровню
-grep "ERROR" logs/sglang.log
-
-# Ротация логов
-./scripts/start.sh cleanup
-```
+| `/get_model_info` | GET | Информация о модели |
 
 ## Производительность
 
-### Ожидаемые показатели
-
-Для модели Qwen2.5-0.5B-Instruct на Quadro RTX 4000 можно ожидать следующие показатели производительности:
+### Ожидаемые показатели на RTX 4000
 
 | Метрика | Значение |
 |---------|----------|
-| TTFT (Time to First Token) | 15-30 мс |
-| TPS (Tokens Per Second) | 50-80 токенов/с |
+| TTFT | 15-30 мс |
+| TPS | 50-80 токенов/с |
 | Latency (100 токенов) | 1.5-2.5 с |
 | VRAM usage | 3-4 ГБ |
-| Batch size | 4-8 запросов |
-
-### Факторы производительности
-
-На производительность влияют следующие факторы:
-
-- **Размер контекста** — увеличение контекста пропорционально увеличивает использование памяти и время обработки
-- **Temperature** — более низкие значения temperature обеспечивают более детерминированные результаты
-- **Max tokens** — ограничение количества генерируемых токенов снижает общее время ответа
-- **Системная нагрузка** — другие процессы на GPU могут значительно снизить производительность
-
-### Рекомендации по оптимизации
-
-Для максимизации производительности:
-
-1. Используйте `--enable-chunked-prefill` для снижения TTFT на длинных запросах
-2. Установите `gpu_memory_utilization=0.85` для стабильной работы без OOM
-3. При высокой нагрузке увеличьте `max_concurrent_tokens` до 512
-4. Регулярно очищайте логи и кэш: `./scripts/start.sh cleanup`
 
 ## Устранение неполадок
 
-### GPU не обнаружен в контейнере
+### Ошибка: unrecognized arguments: --enforce-eager
 
-**Симптомы**: При запуске контейнера GPU не виден или nvidia-smi возвращает ошибку.
+**Проблема**: SGLang v0.4.8 не поддерживает некоторые устаревшие параметры.
 
-**Решение**: Проверьте установку NVIDIA Container Toolkit:
-
-```bash
-# Переустановка NVIDIA Container Toolkit
-distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
-    sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
-sudo systemctl restart docker
-```
-
-### Недостаточно памяти (OOM)
-
-**Симптомы**: Контейнер завершается с ошибкой OOM (Out of Memory) или CUDA out of memory.
-
-**Решение**: Уменьшите `gpu_memory_utilization` или увеличьте swap:
+**Решение**: Используйте только поддерживаемые параметры:
 
 ```bash
-# В файле docker-compose.yml или .env
-GPU_MEMORY_FRACTION=0.70
-
-# Или уменьшите max_concurrent_tokens
-MAX_CONCURRENT_TOKENS=128
+--model-path /models/Qwen2.5-0.5B-Instruct
+--host 0.0.0.0
+--port 30000
+--dtype bfloat16
+--trust-remote-code
+--log-level info
 ```
 
-### Модель не загружается
+### Ошибка: PermissionError: '/home/sglang'
 
-**Симптомы**: Ошибки загрузки модели из HuggingFace Hub.
+**Проблема**: flashinfer пытается создать workspace в домашней директории.
 
-**Решение**: Проверьте доступ к интернету и токен HuggingFace:
+**Решение**: Установите HOME=/tmp в docker-compose.yml:
+
+```yaml
+environment:
+  - HOME=/tmp
+```
+
+### Ошибка: CUDA out of memory
+
+**Проблема**: Недостаточно памяти GPU.
+
+**Решение**: Уменьшите количество одновременных запросов или перезапустите контейнер.
+
+### Ошибка: ModuleNotFoundError
+
+**Проблема**: Отсутствуют Python зависимости.
+
+**Решение**: Используйте официальный образ SGLang, который включает все зависимости:
+
+```dockerfile
+FROM lmsysorg/sglang:v0.4.8.post1-cu126
+```
+
+## Важные исправления и особенности
+
+### Проблемы при разработке и их решения
+
+В процессе развёртывания были решены следующие критические проблемы:
+
+#### 1. Официальный образ vs Самосборный
+
+**Проблема**: При попытке собрать образ с нуля возникали ошибки отсутствия зависимостей (orjson, uvloop, psutil, torch).
+
+**Решение**: Использование официального образа lmsysorg/sglang:v0.4.8.post1-cu126, который включает все необходимые зависимости.
+
+#### 2. Flashinfer Permission Error
+
+**Проблема**: `PermissionError: [Errno 13] Permission denied: '/home/sglang'` при запуске контейнера.
+
+**Решение**: Комбинация двух подходов:
+- Создание `/tmp/flashinfer` с правами 777 в Dockerfile перед переключением пользователя
+- Установка `HOME=/tmp` в docker-compose.yml
+
+#### 3. Устаревшие аргументы SGLang
+
+**Проблема**: `unrecognized arguments: --enforce-eager --gpu-memory-utilization --enable-chunked-prefill --max-concurrent-tokens`
+
+**Решение**: Удаление устаревших параметров из entrypoint.sh. SGLang v0.4.8 автоматически оптимизирует эти параметры.
+
+#### 4. CUDA Architecture для Turing
+
+**Проблема**: Медленная загрузка модели или ошибки совместимости.
+
+**Решение**: Установка `TORCH_CUDA_ARCH_LIST=7.5` для оптимизации под архитектуру Turing.
+
+#### 5. Pre-download модели
+
+**Проблема**: Долгая загрузка модели при первом запуске контейнера.
+
+**Решение**: Предварительная загрузка модели на сервер через huggingface_hub с последующим монтированием локальной директории.
+
+### Команды для быстрого развёртывания
 
 ```bash
-# Проверка подключения
-curl -I https://huggingface.co
+# 1. Клонирование и подготовка
+cd ~/sglang-qwen-container
+git pull origin master
 
-# Проверка аутентификации
-huggingface-cli whoami
+# 2. Загрузка модели (опционально)
+mkdir -p models && cd models
+python3 -c "from huggingface_hub import snapshot_download; snapshot_download('Qwen/Qwen2.5-0.5B-Instruct', local_dir='Qwen2.5-0.5B-Instruct')"
+cd ..
 
-# Ручная загрузка модели с аутентификацией
-export HF_TOKEN="your_token"
-python -c "from transformers import AutoModelForCausalLM; AutoModelForCausalLM.from_pretrained('Qwen/Qwen2.5-0.5B-Instruct')"
+# 3. Сборка и запуск
+docker compose build --no-cache
+docker compose up -d
+
+# 4. Проверка
+docker logs sglang-qwen-inference -f
 ```
 
-### Низкая производительность
-
-**Симптомs**: TTFT превышает 100 мс или TPS ниже 20.
-
-**Решение**: Проверьте температуру GPU и системную нагрузку:
-
-```bash
-# Проверка температуры
-nvidia-smi --query-gpu=temperature.gpu --format=csv
-
-# Проверка процессов
-htop
-
-# Очистка кэша CUDA
-nvidia-smi
-```
-
-Если температура GPU превышает 80°C, обеспечьте дополнительное охлаждение системы.
-
-### Ошибка CUDA out of memory при загрузке модели
-
-**Симптомы**: Модель не загружается из-за нехватки памяти GPU.
-
-**Решение**: Это может происходить при одновременном запуске других GPU-процессов:
-
-```bash
-# Проверка использования памяти
-nvidia-smi
-
-# Остановка конфликтующих процессов
-sudo kill -9 $(nvidia-smi --query-compute-apps=pid --format=csv,noheader)
-```
-
-## Структура проекта
+### Структура проекта
 
 ```
-sglang-qwen-project/
+sglang-qwen-container/
 ├── Dockerfile                    # Docker конфигурация
 ├── docker-compose.yml           # Оркестрация контейнеров
 ├── README.md                    # Документация
-├── .env                         # Переменные окружения (создаётся пользователем)
+├── .gitignore                   # Исключения для Git
+├── requirements.txt             # Python зависимости
 │
 ├── config/
-│   └── custom_sglang.json       # Пользовательская конфигурация SGLang
+│   └── custom_sglang.json       # Конфигурация SGLang
 │
 ├── scripts/
-│   ├── entrypoint.sh            # Entrypoint для Docker контейнера
-│   └── start.sh                 # Главный скрипт управления
+│   ├── entrypoint.sh            # Entrypoint контейнера
+│   └── start.sh                 # Скрипт управления
 │
-├── models/                      # Директория для кэша моделей
+├── models/                      # Локальные модели (исключено из Git)
 ├── data/                        # Рабочие данные
-└── logs/                        # Логи выполнения
+└── logs/                        # Логи
 ```
-
-## Лицензия
-
-Данный проект распространяется под лицензией MIT. При использовании учитывайте лицензии используемых компонентов:
-
-- **SGLang** — Apache 2.0 License
-- **Qwen2.5** — Qianwen License
-- **NVIDIA CUDA** — NVIDIA End User License Agreement
 
 ## Ссылки
 
 - [SGLang GitHub](https://github.com/sgl-project/sglang)
 - [Qwen2.5 Documentation](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/)
-- [SGLang API Documentation](https://github.com/sgl-project/sglang/blob/main/docs/openapi_api.md)
