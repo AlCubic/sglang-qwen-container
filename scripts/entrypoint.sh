@@ -120,7 +120,7 @@ start_sglang() {
     
     # Добавление max concurrent tokens
     local max_concurrent="${MAX_CONCURRENT_TOKENS:-256}"
-    SGLANG_ARGS+=("--max-concurrent-tokens" "$max_concurrent"
+    SGLANG_ARGS+=("--max-concurrent-tokens" "$max_concurrent")
     
     log_debug "Полные аргументы SGLang: ${SGLANG_ARGS[*]}"
     
