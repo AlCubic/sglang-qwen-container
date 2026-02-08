@@ -48,7 +48,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Установка SGLang из PyPI (стабильная версия v0.4.x)
 RUN pip install --upgrade pip setuptools wheel
-RUN pip install sglang==0.4.8.post5 \
+RUN pip install sglang==0.4.8.post1 \
     --no-cache-dir
 
 # Установка дополнительных зависимостей для мониторинга и аналитики
