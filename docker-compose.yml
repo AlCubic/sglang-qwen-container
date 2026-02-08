@@ -38,6 +38,8 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - NVIDIA_REQUIRE=cuda>=12.0
+      - FLASHINFER_WORKSPACE_DIR=/tmp/flashinfer
+      - TORCH_CUDA_ARCH_LIST=7.5
       
     # Конфигурация перезапуска
     restart: unless-stopped

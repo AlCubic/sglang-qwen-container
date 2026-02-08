@@ -19,7 +19,7 @@ COPY config/ /app/config/
 COPY scripts/ /app/scripts/
 
 # Создание директории для моделей и логов
-RUN mkdir -p /models /data /logs
+RUN mkdir -p /models /data /logs /tmp/flashinfer
 
 # Порт для SGLang API
 EXPOSE 30000
