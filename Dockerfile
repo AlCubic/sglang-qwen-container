@@ -10,6 +10,8 @@ LABEL version="1.0.0"
 # Переменные окружения для оптимизации производительности
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
+ENV FLASHINFER_WORKSPACE_DIR=/tmp/flashinfer
+ENV TORCH_CUDA_ARCH_LIST=7.5
 
 # Создание рабочей директории
 WORKDIR /app
@@ -18,8 +20,9 @@ WORKDIR /app
 COPY config/ /app/config/
 COPY scripts/ /app/scripts/
 
-# Создание директории для моделей и логов
-RUN mkdir -p /models /data /logs /tmp/flashinfer
+# Создание директории для моделей, логов и Flashinfer workspace
+# Создаём ДО переключения на пользователя для избежания проблем с правами
+RUN mkdir -p /models /data /logs /tmp/flashinfer && chmod 777 /tmp/flashinfer
 
 # Порт для SGLang API
 EXPOSE 30000
