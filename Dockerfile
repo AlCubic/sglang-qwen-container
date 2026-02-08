@@ -46,10 +46,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3.11 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Установка SGLang из PyPI (стабильная версия v0.4.x)
+# Установка SGLang из PyPI с полным набором зависимостей
 RUN pip install --upgrade pip setuptools wheel
-RUN pip install sglang==0.4.8.post1 \
-    && pip install orjson \
+RUN pip install sglang==0.4.8.post1[srt] \
     --no-cache-dir
 
 # Установка дополнительных зависимостей для мониторинга и аналитики
