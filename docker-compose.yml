@@ -29,6 +29,7 @@ services:
     
     # Переменные окружения
     environment:
+      - HOME=/tmp
       - MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct
       - SGLANG_PORT=30000
       - SGLANG_HOST=0.0.0.0
