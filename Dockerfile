@@ -46,6 +46,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3.11 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Установка PyTorch с CUDA
+RUN pip install torch --index-url https://download.pytorch.org/whl/cu124
+
 # Установка SGLang из PyPI
 RUN pip install --upgrade pip setuptools wheel
 RUN pip install sglang==0.4.8.post1 \
