@@ -121,7 +121,7 @@ cleanup() {
 start_sglang() {
     local model_path="${1:-$MODEL_PATH}"
     local host="${SGLANG_HOST:-0.0.0.0}"
-    local port="${SGLANG_PORT:-30000}"
+    local port="${SGLANG_PORT:-5000}"
     local dtype="${SGLANG_DTYPE:-bfloat16}"
     
     log_info "Запуск SGLang сервера..."

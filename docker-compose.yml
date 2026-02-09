@@ -17,8 +17,8 @@ services:
     
     # Проброс портов
     ports:
-      - "30000:30000"
-      - "30001:30001"
+      - "5000:5000"
+      - "5001:5001"
     
     # Монтирование томов для persistent данных
     volumes:
@@ -31,7 +31,7 @@ services:
     environment:
       - HOME=/tmp
       - MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct
-      - SGLANG_PORT=30000
+      - SGLANG_PORT=5000
       - SGLANG_HOST=0.0.0.0
       - SGLANG_DTYPE=bfloat16
       - HF_TOKEN=${HF_TOKEN:-}
@@ -47,7 +47,7 @@ services:
     
     # Проверка здоровья контейнера
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:30000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 30s
       timeout: 15s
       retries: 5
