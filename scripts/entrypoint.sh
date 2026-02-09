@@ -62,6 +62,49 @@ check_env() {
     log_info "Тип данных: $SGLANG_DTYPE"
 }
 
+# Проверка и загрузка модели
+download_model() {
+    local model_path="$1"
+    local model_name="Qwen/Qwen2.5-0.5B-Instruct"
+    
+    if [ -d "$model_path" ]; then
+        # Проверяем, что в директории есть файлы модели
+        if [ -f "$model_path/config.json" ] && [ -f "$model_path/model.safetensors" ]; then
+            log_info "Модель найдена локально: $model_path"
+            return 0
+        fi
+    fi
+    
+    log_warn "Модель не найдена или неполная: $model_path"
+    log_info "Начинаю загрузку модели с HuggingFace Hub..."
+    
+    # Создаём директорию если не существует
+    mkdir -p "$model_path"
+    
+    # Загружаем модель через huggingface_hub
+    if python3 -c "
+from huggingface_hub import snapshot_download
+import os
+
+model_path = os.environ.get('MODEL_PATH', '/models/Qwen2.5-0.5B-Instruct')
+model_name = 'Qwen/Qwen2.5-0.5B-Instruct'
+
+print(f'Загрузка модели {model_name} в {model_path}...')
+snapshot_download(
+    repo_id=model_name,
+    local_dir=model_path,
+    local_dir_use_symlinks=False
+)
+print('Модель успешно загружена!')
+"; then
+        log_info "Модель успешно загружена: $model_path"
+        return 0
+    else
+        log_error "Не удалось загрузить модель"
+        return 1
+    fi
+}
+
 # Очистка кэша и временных файлов
 cleanup() {
     log_info "Очистка временных файлов..."
@@ -90,14 +133,18 @@ start_sglang() {
     # Проверка и создание директории для логов
     mkdir -p /logs
     
-    # Проверка наличия локальной модели
+    # Проверка наличия локальной модели, загрузка при необходимости
     if [ -d "$model_path" ]; then
-        log_info "Найдена локальная модель: $model_path"
-    elif [ -d "/models/Qwen2.5-0.5B-Instruct" ]; then
-        model_path="/models/Qwen2.5-0.5B-Instruct"
-        log_info "Используется локальная модель: $model_path"
+        # Проверяем, что в директории есть файлы модели
+        if [ -f "$model_path/config.json" ] && [ -f "$model_path/model.safetensors" ]; then
+            log_info "Найдена локальная модель: $model_path"
+        else
+            log_warn "Директория модели существует, но файлы неполные. Загрузка..."
+            download_model "$model_path" || log_error "Не удалось загрузить модель"
+        fi
     else
-        log_info "Модель будет загружена с HuggingFace Hub: $model_path"
+        log_info "Модель не найдена, начинаю загрузку..."
+        download_model "$model_path" || log_error "Не удалось загрузить модель"
     fi
     
     # Сборка аргументов для SGLang v0.4.8 (только поддерживаемые параметры)
