@@ -25,7 +25,7 @@ COPY scripts/ /app/scripts/
 RUN mkdir -p /models /data /logs /tmp/flashinfer && chmod 777 /tmp/flashinfer
 
 # Порт для SGLang API
-EXPOSE 30000
+EXPOSE 5000
 
 # Скрипт инициализации
 COPY scripts/entrypoint.sh /app/entrypoint.sh
