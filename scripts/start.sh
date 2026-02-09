@@ -205,9 +205,15 @@ start_container() {
     
     # Установка переменных окружения
     export MODEL_NAME="${MODEL_NAME:-Qwen/Qwen2.5-0.5B-Instruct}"
-    export SGLANG_PORT="${SGLANG_PORT:-30000}"
+    export SGLANG_PORT="${SGLANG_PORT:-5000}"
     export SGLANG_HOST="${SGLANG_HOST:-0.0.0.0}"
     export SGLANG_DTYPE="${SGLANG_DTYPE:-bfloat16}"
+    
+    # Исправление прав доступа к папке models на хосте
+    log INFO "Исправление прав доступа к папке models..."
+    if [ -d "$PROJECT_DIR/models" ]; then
+        sudo chmod -R 777 "$PROJECT_DIR/models" 2>/dev/null || log WARN "Не удалось изменить права на models"
+    fi
     
     if [ "$detach" = true ]; then
         log INFO "Запуск в фоновом режиме..."
@@ -296,7 +302,7 @@ enter_shell() {
 
 # Тестирование API
 test_api() {
-    local port="${SGLANG_PORT:-30000}"
+    local port="${SGLANG_PORT:-5000}"
     log INFO "Тестирование API на порту $port..."
     
     # Проверка health endpoint

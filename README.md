@@ -135,15 +135,15 @@ docker compose down
 
 ```bash
 # Проверка информации о модели
-curl http://localhost:30000/get_model_info
+curl http://localhost:5000/get_model_info
 
 # Генерация текста
-curl -X POST http://localhost:30000/generate \
+curl -X POST http://localhost:5000/generate \
   -H "Content-Type: application/json" \
   -d '{"text": "Какой столица Франции?", "max_tokens": 100}'
 
 # Проверка здоровья
-curl http://localhost:30000/health
+curl http://localhost:5000/health
 ```
 
 ## Конфигурация
@@ -156,7 +156,7 @@ curl http://localhost:30000/health
 |----------|----------|----------|
 | MODEL_PATH | /models/Qwen2.5-0.5B-Instruct | Локальный путь к модели |
 | SGLANG_HOST | 0.0.0.0 | IP для прослушивания |
-| SGLANG_PORT | 30000 | Порт сервера |
+| SGLANG_PORT | 5000 | Порт сервера |
 | SGLANG_DTYPE | bfloat16 | Тип данных |
 | HOME | /tmp | Для избежания ошибок flashinfer |
 | FLASHINFER_WORKSPACE_DIR | /tmp/flashinfer | Рабочая директория flashinfer |
@@ -218,7 +218,7 @@ docker logs sglang-qwen-inference --tail 50
 ```bash
 --model-path /models/Qwen2.5-0.5B-Instruct
 --host 0.0.0.0
---port 30000
+--port 5000
 --dtype bfloat16
 --trust-remote-code
 --log-level info
