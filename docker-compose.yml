@@ -2,22 +2,22 @@ services:
   sglang-server:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ${DOCKERFILE:-Dockerfile}
     container_name: sglang-qwen-inference
     hostname: sglang-inference
     
-    # Конфигурация GPU
+    # Конфигурация GPU (автоматически отключается для CPU режима)
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: ${GPU_COUNT:-1}
               capabilities: [gpu]
     
     # Проброс портов
     ports:
-      - "5000:5000"
+      - "${SGLANG_PORT:-5000}:${SGLANG_PORT:-5000}"
       - "5001:5001"
     
     # Монтирование томов для persistent данных
@@ -31,35 +31,30 @@ services:
     environment:
       - HOME=/tmp
       - MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct
-      - SGLANG_PORT=5000
+      - SGLANG_PORT=${SGLANG_PORT:-5000}
       - SGLANG_HOST=0.0.0.0
-      - SGLANG_DTYPE=bfloat16
+      - SGLANG_DTYPE=${SGLANG_DTYPE:-bfloat16}
       - HF_TOKEN=${HF_TOKEN:-}
-      - CUDA_VISIBLE_DEVICES=0
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - NVIDIA_REQUIRE=cuda>=12.0
       - FLASHINFER_WORKSPACE_DIR=/tmp/flashinfer
       - TORCH_CUDA_ARCH_LIST=7.5
-      
+      # CPU Offload параметры (опционально)
+      - SGLANG_ENABLE_CPU_OFFLOAD=${SGLANG_ENABLE_CPU_OFFLOAD:-false}
+      - OFFLOAD_DIR=/tmp/offload
+    
     # Конфигурация перезапуска
     restart: unless-stopped
     
     # Проверка здоровья контейнера
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:${SGLANG_PORT:-5000}/health || exit 1"]
       interval: 30s
       timeout: 15s
       retries: 5
       start_period: 120s
-    
-    # Ограничения ресурсов (опционально)
-    # mem_limit: 16g
-    # shm_size: 4g
-    
-    # Сети (раскомментировать если нужна изолированная сеть)
-    # networks:
-    #   - sglang-network
     
     # Логирование
     logging:
@@ -68,7 +63,7 @@ services:
         max-size: "100m"
         max-file: "5"
 
-# Определение сетей (раскомментировать при использовании)
+# Определение сетей
 # networks:
 #   sglang-network:
 #     driver: bridge

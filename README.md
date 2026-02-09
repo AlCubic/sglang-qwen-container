@@ -1,18 +1,18 @@
 # SGLang + Qwen2.5-0.5B-Instruct Docker Deployment
 
-Данный проект содержит полную конфигурацию для развёртывания высокопроизводительного LLM-сервера на базе фреймворка SGLang с моделью Qwen2.5-0.5B-Instruct, оптимизированного для работы на GPU NVIDIA Quadro RTX 4000 (архитектура Turing).
+Данный проект содержит полную конфигурацию для развёртывания высокопроизводительного LLM-сервера на базе фреймворка SGLang с моделью Qwen2.5-0.5B-Instruct. Поддерживаются различные режимы развёртывания: single-GPU, dual-GPU, CPU-only и CPU Offload.
 
 ## Содержание
 
 1. [Обзор решения](#обзор-решения)
-2. [Системные требования](#системные-требования)
-3. [Установка и настройка](#установка-и-настройка)
-4. [Запуск и эксплуатация](#запуск-и-эксплуатация)
-5. [Конфигурация](#конфигурация)
-6. [Мониторинг и обслуживание](#мониторинг-и-обслуживание)
-7. [Производительность](#производительность)
-8. [Устранение неполадок](#устранение-неполадок)
-9. [Важные исправления и особенности](#важные-исправления-и-особенности)
+2. [Режимы развёртывания](#режимы-развёртывания)
+3. [Системные требования](#системные-требования)
+4. [Установка и настройка](#установка-и-настройка)
+5. [Запуск и эксплуатация](#запуск-и-эксплуатация)
+6. [Конфигурация](#конфигурация)
+7. [Мониторинг и обслуживание](#мониторинг-и-обслуживание)
+8. [Производительность](#производительность)
+9. [Устранение неполадок](#устранение-неполадок)
 
 ## Обзор решения
 
@@ -22,7 +22,7 @@
 
 - **SGLang v0.4.8.post1** — высокопроизводительный фреймворк для обслуживания больших языковых моделей
 - **Qwen2.5-0.5B-Instruct** — компактная языковая модель от Alibaba с 500 миллионами параметров
-- **Docker Container** — контейнер на базе официального образа lmsysorg/sglang:v0.4.8.post1-cu126 с CUDA 12.6
+- **Docker Container** — контейнер на базе официального образа lmsysorg/sglang с CUDA 12.6
 
 ### Ключевые характеристики модели
 
@@ -34,19 +34,101 @@
 | Поддержка квантизации | Да (GPTQ, AWQ, GGUF) |
 | Языки | Многоязычная (включая русский) |
 
+## Режимы развёртывания
+
+### 1. Single-GPU (по умолчанию)
+
+Запуск на одном GPU. Подходит для большинства случаев использования.
+
+**Требования:**
+- 1 GPU с минимум 8 ГБ VRAM
+- CUDA 12.0+
+
+**Запуск:**
+```bash
+./scripts/start.sh build
+./scripts/start.sh start
+```
+
+### 2. Dual-GPU
+
+Запуск на двух GPU с использованием tensor parallelism для увеличения производительности.
+
+**Требования:**
+- 2 GPU с минимум 8 ГБ VRAM каждый
+- CUDA 12.0+
+
+**Запуск:**
+```bash
+DEPLOYMENT_MODE=dual-gpu ./scripts/start.sh build
+DEPLOYMENT_MODE=dual-gpu ./scripts/start.sh start
+```
+
+**Преимущества:**
+- Увеличенная производительность
+- Возможность использования более крупных моделей
+- Балансировка нагрузки между GPU
+
+### 3. CPU-Only
+
+Запуск без GPU, используя только CPU для инференса. Подходит для тестирования или систем без GPU.
+
+**Требования:**
+- CPU с поддержкой AVX2
+- Минимум 16 ГБ оперативной памяти
+- 8+ ядер CPU рекомендуется
+
+**Запуск:**
+```bash
+DEPLOYMENT_MODE=cpu-only ./scripts/start.sh build
+DEPLOYMENT_MODE=cpu-only ./scripts/start.sh start
+```
+
+**Оптимизация:**
+```bash
+export SGLANG_CPU_OMP_NUM_THREADS=16  # Количество потоков
+```
+
+**Ожидаемая производительность:**
+- TTFT: 500-2000 мс
+- TPS: 5-20 токенов/с
+
+### 4. CPU Offload
+
+Гибридный режим, где часть модели загружается в GPU, а остальная часть хранится в CPU и подгружается по мере необходимости. Подходит для больших моделей, которые не помещаются полностью в видеопамять.
+
+**Требования:**
+- 1 GPU с минимум 4 ГБ VRAM
+- CPU с поддержкой AVX2
+- Минимум 32 ГБ оперативной памяти
+
+**Запуск:**
+```bash
+DEPLOYMENT_MODE=offload ./scripts/start.sh build
+DEPLOYMENT_MODE=offload ./scripts/start.sh start
+```
+
+**Конфигурация:**
+```bash
+export SGLANG_CPU_OFFLOAD_FRACTION=0.5  # Доля модели в CPU (0.0-1.0)
+```
+
+**Преимущества:**
+- Возможность запуска больших моделей
+- Экономия VRAM
+- Компромисс между производительностью и требованиями к памяти
+
 ## Системные требования
 
 ### Аппаратные требования
 
-| Компонент | Минимальные требования | Рекомендуемые |
-|-----------|------------------------|---------------|
-| GPU | NVIDIA Quadro RTX 4000 8GB | NVIDIA RTX 4060+ |
-| VRAM | 8 ГБ | 8+ ГБ |
-| Системная память | 16 ГБ | 32 ГБ |
-| CPU | 4 ядра | 8 ядер |
-| Диск | 50 ГБ SSD | 100+ ГБ NVMe SSD |
-
-Quadro RTX 4000 построена на архитектуре Turing (CUDA capability 7.5) с 8 ГБ GDDR6 памяти.
+| Компонент | Single-GPU | Dual-GPU | CPU-Only | Offload |
+|-----------|------------|----------|----------|---------|
+| GPU | NVIDIA RTX 4060+ 8GB | 2x NVIDIA RTX 4060+ 8GB | Нет | NVIDIA RTX 4060+ 4GB |
+| VRAM | 8+ ГБ | 16+ ГБ | Нет | 4+ ГБ |
+| Системная память | 16 ГБ | 32 ГБ | 16+ ГБ | 32+ ГБ |
+| CPU | 4 ядра | 8 ядер | 8+ ядер | 8 ядер |
+| Диск | 50 ГБ SSD | 100 ГБ NVMe | 50 ГБ SSD | 100 ГБ NVMe |
 
 ### Программные требования
 
@@ -54,7 +136,7 @@ Quadro RTX 4000 построена на архитектуре Turing (CUDA capa
 |-----------|------------------|
 | NVIDIA Driver | 470.x или выше |
 | Docker | 20.10 или выше |
-| Docker Compose | 2.0+ (используйте `docker compose` без дефиса) |
+| Docker Compose | 2.0+ |
 | NVIDIA Container Toolkit | 1.13 или выше |
 | CUDA Toolkit | 12.0+ |
 
@@ -101,16 +183,24 @@ sudo chown -R $USER:$USER models data logs
 
 ### Сборка и запуск
 
+**Выбор режима:**
+
 ```bash
-# Сборка Docker образа
-cd ~/sglang-qwen-container
-docker compose build
+# Single-GPU (по умолчанию)
+./scripts/start.sh build
+./scripts/start.sh start
 
-# Запуск контейнера
-docker compose up -d
+# Dual-GPU
+DEPLOYMENT_MODE=dual-gpu ./scripts/start.sh build
+DEPLOYMENT_MODE=dual-gpu ./scripts/start.sh start
 
-# Проверка статуса
-docker ps | grep sglang
+# CPU-Only
+DEPLOYMENT_MODE=cpu-only ./scripts/start.sh build
+DEPLOYMENT_MODE=cpu-only ./scripts/start.sh start
+
+# CPU Offload
+DEPLOYMENT_MODE=offload ./scripts/start.sh build
+DEPLOYMENT_MODE=offload ./scripts/start.sh start
 ```
 
 ## Запуск и эксплуатация
@@ -150,27 +240,26 @@ curl http://localhost:5000/health
 
 ### Параметры SGLang
 
-Основные параметры настраиваются через переменные окружения в docker-compose.yml:
+Основные параметры настраиваются через переменные окружения:
 
-| Параметр | Значение | Описание |
-|----------|----------|----------|
+| Параметр | Значение по умолчанию | Описание |
+|----------|----------------------|----------|
 | MODEL_PATH | /models/Qwen2.5-0.5B-Instruct | Локальный путь к модели |
 | SGLANG_HOST | 0.0.0.0 | IP для прослушивания |
 | SGLANG_PORT | 5000 | Порт сервера |
-| SGLANG_DTYPE | bfloat16 | Тип данных |
-| HOME | /tmp | Для избежания ошибок flashinfer |
-| FLASHINFER_WORKSPACE_DIR | /tmp/flashinfer | Рабочая директория flashinfer |
-| TORCH_CUDA_ARCH_LIST | 7.5 | CUDA architecture для Turing |
+| SGLANG_DTYPE | bfloat16 | Тип данных (float32 для CPU) |
+| SGLANG_CPU_OMP_NUM_THREADS | 8 | Количество потоков CPU |
+| SGLANG_ENABLE_CPU_OFFLOAD | false | Включение CPU offload |
 
-### Оптимизация для RTX 4000
-
-Для Quadro RTX 4000 критически важны следующие настройки:
+### Переменные окружения Docker Compose
 
 ```yaml
 environment:
   - HOME=/tmp
+  - SGLANG_PORT=5000
+  - SGLANG_DTYPE=bfloat16
+  - CUDA_VISIBLE_DEVICES=0
   - FLASHINFER_WORKSPACE_DIR=/tmp/flashinfer
-  - TORCH_CUDA_ARCH_LIST=7.5
 ```
 
 ## Мониторинг
@@ -195,125 +284,68 @@ docker logs sglang-qwen-inference --tail 50
 | `/generate` | POST | Генерация текста |
 | `/health` | GET | Проверка работоспособности |
 | `/get_model_info` | GET | Информация о модели |
+| `/v1/models` | GET | Список моделей |
 
 ## Производительность
 
-### Ожидаемые показатели на RTX 4000
+### Ожидаемые показатели
 
-| Метрика | Значение |
-|---------|----------|
-| TTFT | 15-30 мс |
-| TPS | 50-80 токенов/с |
-| Latency (100 токенов) | 1.5-2.5 с |
-| VRAM usage | 3-4 ГБ |
+| Режим | TTFT | TPS | VRAM |
+|-------|------|-----|------|
+| Single-GPU | 15-30 мс | 50-80 | 3-4 ГБ |
+| Dual-GPU | 10-20 мс | 100-150 | 6-8 ГБ |
+| CPU-Only | 500-2000 мс | 5-20 | 0 ГБ |
+| Offload | 50-100 мс | 30-50 | 2-3 ГБ |
 
 ## Устранение неполадок
 
-### Ошибка: unrecognized arguments: --enforce-eager
+### Ошибка: unrecognized arguments
 
 **Проблема**: SGLang v0.4.8 не поддерживает некоторые устаревшие параметры.
 
-**Решение**: Используйте только поддерживаемые параметры:
-
-```bash
---model-path /models/Qwen2.5-0.5B-Instruct
---host 0.0.0.0
---port 5000
---dtype bfloat16
---trust-remote-code
---log-level info
-```
-
-### Ошибка: PermissionError: '/home/sglang'
-
-**Проблема**: flashinfer пытается создать workspace в домашней директории.
-
-**Решение**: Установите HOME=/tmp в docker-compose.yml:
-
-```yaml
-environment:
-  - HOME=/tmp
-```
+**Решение**: Используйте только поддерживаемые параметры, как указано в соответствующих entrypoint скриптах.
 
 ### Ошибка: CUDA out of memory
 
 **Проблема**: Недостаточно памяти GPU.
 
-**Решение**: Уменьшите количество одновременных запросов или перезапустите контейнер.
+**Решение**: 
+- Уменьшите количество одновременных запросов
+- Переключитесь на режим CPU Offload
+- Используйте CPU-Only режим для тестирования
+
+### Ошибка: PermissionError
+
+**Проблема**: Нет прав на запись в директорию.
+
+**Решение**:
+```bash
+sudo chmod -R 777 models data logs
+```
+
+### Ошибка: GPU not found
+
+**Проблема**: GPU недоступен в контейнере.
+
+**Решение**:
+- Проверьте установку NVIDIA Container Toolkit
+- Проверьте драйверы NVIDIA
+- Для CPU-Only режима установите DEPLOYMENT_MODE=cpu-only
 
 ### Ошибка: ModuleNotFoundError
 
 **Проблема**: Отсутствуют Python зависимости.
 
-**Решение**: Используйте официальный образ SGLang, который включает все зависимости:
+**Решение**: Используйте официальный образ SGLang, который включает все зависимости.
 
-```dockerfile
-FROM lmsysorg/sglang:v0.4.8.post1-cu126
-```
-
-## Важные исправления и особенности
-
-### Проблемы при разработке и их решения
-
-В процессе развёртывания были решены следующие критические проблемы:
-
-#### 1. Официальный образ vs Самосборный
-
-**Проблема**: При попытке собрать образ с нуля возникали ошибки отсутствия зависимостей (orjson, uvloop, psutil, torch).
-
-**Решение**: Использование официального образа lmsysorg/sglang:v0.4.8.post1-cu126, который включает все необходимые зависимости.
-
-#### 2. Flashinfer Permission Error
-
-**Проблема**: `PermissionError: [Errno 13] Permission denied: '/home/sglang'` при запуске контейнера.
-
-**Решение**: Комбинация двух подходов:
-- Создание `/tmp/flashinfer` с правами 777 в Dockerfile перед переключением пользователя
-- Установка `HOME=/tmp` в docker-compose.yml
-
-#### 3. Устаревшие аргументы SGLang
-
-**Проблема**: `unrecognized arguments: --enforce-eager --gpu-memory-utilization --enable-chunked-prefill --max-concurrent-tokens`
-
-**Решение**: Удаление устаревших параметров из entrypoint.sh. SGLang v0.4.8 автоматически оптимизирует эти параметры.
-
-#### 4. CUDA Architecture для Turing
-
-**Проблема**: Медленная загрузка модели или ошибки совместимости.
-
-**Решение**: Установка `TORCH_CUDA_ARCH_LIST=7.5` для оптимизации под архитектуру Turing.
-
-#### 5. Pre-download модели
-
-**Проблема**: Долгая загрузка модели при первом запуске контейнера.
-
-**Решение**: Предварительная загрузка модели на сервер через huggingface_hub с последующим монтированием локальной директории.
-
-### Команды для быстрого развёртывания
-
-```bash
-# 1. Клонирование и подготовка
-cd ~/sglang-qwen-container
-git pull origin master
-
-# 2. Загрузка модели (опционально)
-mkdir -p models && cd models
-python3 -c "from huggingface_hub import snapshot_download; snapshot_download('Qwen/Qwen2.5-0.5B-Instruct', local_dir='Qwen2.5-0.5B-Instruct')"
-cd ..
-
-# 3. Сборка и запуск
-docker compose build --no-cache
-docker compose up -d
-
-# 4. Проверка
-docker logs sglang-qwen-inference -f
-```
-
-### Структура проекта
+## Структура проекта
 
 ```
 sglang-qwen-container/
-├── Dockerfile                    # Docker конфигурация
+├── Dockerfile                    # Single-GPU конфигурация
+├── Dockerfile.cpu                # CPU-only конфигурация
+├── Dockerfile.gpu2               # Dual-GPU конфигурация
+├── Dockerfile.offload            # CPU Offload конфигурация
 ├── docker-compose.yml           # Оркестрация контейнеров
 ├── README.md                    # Документация
 ├── .gitignore                   # Исключения для Git
@@ -323,7 +355,10 @@ sglang-qwen-container/
 │   └── custom_sglang.json       # Конфигурация SGLang
 │
 ├── scripts/
-│   ├── entrypoint.sh            # Entrypoint контейнера
+│   ├── entrypoint.sh            # Entrypoint (single-GPU)
+│   ├── entrypoint_cpu.sh        # Entrypoint (CPU-only)
+│   ├── entrypoint_gpu2.sh       # Entrypoint (dual-GPU)
+│   ├── entrypoint_offload.sh    # Entrypoint (offload)
 │   └── start.sh                 # Скрипт управления
 │
 ├── models/                      # Локальные модели (исключено из Git)

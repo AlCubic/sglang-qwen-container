@@ -1,0 +1,34 @@
+#!/bin/bash
+# Dockerfile для CPU-only инференса SGLang
+# Оптимизировано для работы без GPU на CPU
+
+# Используем официальный образ SGLang для CPU
+FROM lmsysorg/sglang:latest-python3.10
+
+WORKDIR /app
+
+# Копируем конфигурационные файлы
+COPY config/ /app/config/
+COPY scripts/ /app/scripts/
+
+# Создаём необходимые директории
+RUN mkdir -p /models /data /logs /tmp/flashinfer && chmod 777 /tmp/flashinfer
+
+# Копируем entrypoint скрипт
+COPY scripts/entrypoint_cpu.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Создаём пользователя sglang
+RUN groupadd -r sglang && useradd -r -g sglang sglang
+RUN chown -R sglang:sglang /app /models /data /logs
+
+USER sglang
+
+# Переменные окружения по умолчанию для CPU
+ENV SGLANG_CPU_OMP_NUM_THREADS=8
+ENV OMP_NUM_THREADS=8
+ENV MKL_NUM_THREADS=8
+
+EXPOSE 5000 5001
+
+ENTRYPOINT ["/app/entrypoint.sh"]

@@ -1,0 +1,36 @@
+#!/bin/bash
+# Dockerfile для CPU offload инференса SGLang
+# Оптимизировано для частичной загрузки модели в GPU с использованием CPU offload
+# Подходит для больших моделей, которые не помещаются полностью в видеопамять
+
+# Используем официальный образ SGLang с CUDA
+FROM lmsysorg/sglang:v0.4.8.post1-cu126
+
+WORKDIR /app
+
+# Копируем конфигурационные файлы
+COPY config/ /app/config/
+COPY scripts/ /app/scripts/
+
+# Создаём необходимые директории
+RUN mkdir -p /models /data /logs /tmp/flashinfer /tmp/offload && chmod 777 /tmp/flashinfer /tmp/offload
+
+# Копируем entrypoint скрипт для offload режима
+COPY scripts/entrypoint_offload.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Создаём пользователя sglang
+RUN groupadd -r sglang && useradd -r -g sglang sglang
+RUN chown -R sglang:sglang /app /models /data /logs
+
+USER sglang
+
+# Переменные окружения для offload оптимизации
+ENV CUDA_VISIBLE_DEVICES=0
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV SGLANG_ENABLE_CPU_OFFLOAD=true
+ENV FLASHINFER_WORKSPACE_DIR=/tmp/flashinfer
+
+EXPOSE 5000 5001
+
+ENTRYPOINT ["/app/entrypoint.sh"]
